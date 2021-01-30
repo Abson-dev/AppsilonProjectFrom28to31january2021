@@ -2,7 +2,7 @@
 library(shiny.semantic)
 menu_content <- list(
   list(name = "MAP", link = "#vessel_dropdown", icon="ship",active_location = c("map","table")),
-  list(name = "Stats",link = "#table",icon="ship"),
+  list(name = "Stats",link = "#port_dropdown",icon="ship"),
   list(name = "Comparison")
 )
 
@@ -39,7 +39,7 @@ if (interactive()){
     semantic_DTOutput("table_dist")
     ),
     segment(class = "basic",
-            a(class="ui green ribbon label", "More information about vessel sailed"),
+            a(class="ui green ribbon label", "More information about vessel"),
     semantic_DTOutput("table"),
     uiOutput("Envbug")),
     segment(
@@ -47,8 +47,20 @@ if (interactive()){
       a(class="ui green ribbon label", "Number vessel by type"),
       plotlyOutput("plot")
       
+    ),
+    ###############port stats
+    selectInput("port_dropdown",label ="Select port:" , choices=ships$PORT %>% unique(),selected = ships$PORT %>% unique() %>%  purrr::pluck(1),multiple=F,width = 200),
+    selectInput("stat_vessel_dropdown",label ="Select vessel type:" , choices=append(ships$ship_type %>% unique(), "All"),selected = append(ships$ship_type %>% unique(), "All") %>%  purrr::pluck(1),multiple=F,width = 200),
+    segment(
+      class = "basic",
+      a(class="ui green ribbon label", "Total number of vessels (not parked) in the port"),
+      plotlyOutput("stat_plot_port_all")
+    ),
+    segment(
+      class = "basic",
+      a(class="ui green ribbon label", "Total capacity of vessels (not parked) in the port"),
+      plotlyOutput("DWT_plot_port_all")
     )
-    
   )
   server <- function(input, output, session) {
     observeEvent(input$vessel_dropdown,{
@@ -160,6 +172,100 @@ if (interactive()){
         )  
       })
   })
+    ##############port stats tab
+    observeEvent(input$port_dropdown,{
+      x <-   ships %>% dplyr::filter(PORT==input$port_dropdown)  %>% dplyr::select(ship_type) %>% unique()
+      x <- append(x$ship_type %>% unique(), "All")
+      if (is.null(x))
+        x <- character(0)
+      updateSelectInput(session, "stat_vessel_dropdown",
+                        label = "Select vessel:",
+                        choices = x,
+                        selected = head(x, 1)
+      )
+    })
+    port_stat_choice <- reactive({
+      list(input$port_dropdown,
+           input$stat_vessel_dropdown)
+    })
+    observeEvent(port_stat_choice(),{
+      port_df<-reactive({
+        if(input$stat_vessel_dropdown=="All"){
+          df<-ships %>% filter(PORT==input$port_dropdown,is_parked==0) %>% group_by(date,ship_type) %>% 
+            summarize(number=n())
+        }
+        else{
+          df<-ships %>% filter(PORT==input$port_dropdown,ship_type==input$stat_vessel_dropdown,is_parked==0) %>% group_by(date) %>% 
+            summarize(number=n())
+        }
+        df
+      })
+      output$stat_plot_port_all <- renderPlotly({
+        df<-port_df()
+        if(input$stat_vessel_dropdown=="All"){
+        plot_ly(df, x = ~date,y=~number, color = ~ship_type,type = "bar") %>% layout(
+          title = 'Total number of vessels (not parked) in the port',
+          xaxis = list(
+            title = 'Times'
+          ),
+          yaxis = list(
+            title = 'Number of vessels (not parked) in the port'
+            
+          )
+        )
+        }
+        else{
+          plot_ly(df, x = ~date,y=~number,type = "bar")%>% layout(
+            title = 'Total number of vessels (not parked) in the port',
+            xaxis = list(
+              title = 'Times'
+            ),
+            yaxis = list(
+              title = 'Number of vessels (not parked) in the port'
+              
+            )
+          )
+        }
+      })
+      DWT_df<-reactive({
+        if(input$stat_vessel_dropdown=="All"){
+          df<-ships %>% filter(PORT==input$port_dropdown,is_parked==0) %>% group_by(date,ship_type) %>% 
+            summarize(DWT=sum(DWT,na.rm = T))
+        }
+        else{
+          df<-ships %>% filter(PORT==input$port_dropdown,ship_type==input$stat_vessel_dropdown,is_parked==0) %>% group_by(date) %>% 
+            summarize(DWT=sum(DWT,na.rm = T))
+        }
+        df
+        
+      })
+      output$DWT_plot_port_all <- renderPlotly({
+        df<-DWT_df()
+        if(input$stat_vessel_dropdown=="All"){
+          plot_ly(df, x = ~date,y=~DWT, color = ~ship_type,type = "bar")%>% layout(
+          title = 'Total capacity of vessels (not parked) in the port',
+          xaxis = list(
+            title = 'Times'
+          ),
+          yaxis = list(
+            title = 'Sum capacity'
+            
+          )
+        )}
+        else{
+          plot_ly(df, x = ~date,y=~DWT,type = "bar")%>% layout(
+            title = 'Total capacity of vessels (not parked) in the port',
+            xaxis = list(
+              title = 'Times'
+            ),
+            yaxis = list(
+              title = 'Sum capacity'
+              
+            )
+          )
+        }
+      })
+      })
   }
   shinyApp(ui, server)
 }
