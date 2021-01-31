@@ -1,6 +1,6 @@
-if (interactive()) {
-library(shiny)
-library(shiny.semantic)
-shinyApp(ui, server)
-  
+if (interactive()){
+  source("server.R")
+  source("ui.R")
+  # Create Shiny object
+  shinyApp(ui = ui, server = server)
 }
