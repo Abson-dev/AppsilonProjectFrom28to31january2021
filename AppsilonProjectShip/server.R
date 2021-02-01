@@ -11,6 +11,11 @@ library(plotly)
 library(ggplot2)
 library(purrr)
 
+#Load data
+
+#load data 
+ships<-read.csv("./Data/ships.csv")
+
 # Define server function
 server <- shinyServer(function(input, output, session) {
   
