@@ -9,8 +9,7 @@ library(leaflet)
 library(plotly)
 library(ggplot2)
 library(purrr)
-#Load data
-ships <- read_csv("ships.csv")
+
 
 ui <- shinyUI(semanticPage(
   tabset(
